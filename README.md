@@ -66,8 +66,8 @@ The commit ID is a SHA-256 hash of the tracked files' names and contents. If the
 
 This is a learning project, so don't use it for anything you can't afford to lose.
 
-- **Use it with files in the current directory only.** Commits store files by name without their folder. Checking out a commit that tracks `src/a.txt` deletes that file and restores it as `./a.txt`, and files with the same name overwrite each other.
-- **Checkout discards uncommitted changes** to tracked files, without warning.
+- **Files must be inside the current directory.** `add` rejects absolute paths and paths like `../notes.txt`.
+- **Checkout discards uncommitted changes** to tracked files, without warning. It also deletes tracked files that aren't in the commit being restored.
 - **Commits can be empty.** Committing with no tracked files still creates a commit.
 - **Commit IDs can repeat.** Returning a file to an earlier state and committing again reuses that commit's ID and creates a second log entry for it. Committing right after a checkout does the same.
 - **Files can't be untracked**, and `add` accepts a directory, which makes later commits fail.

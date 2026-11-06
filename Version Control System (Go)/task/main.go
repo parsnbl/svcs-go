@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -206,7 +207,12 @@ func handleAdd(args []string) {
 		}
 		return
 	}
-	_, statErr := os.Stat(args[0])
+	file := filepath.Clean(args[0])
+	if !filepath.IsLocal(file) {
+		fmt.Printf("Can't track '%s': it's outside the current directory.\n", args[0])
+		return
+	}
+	_, statErr := os.Stat(file)
 	if os.IsNotExist(statErr) {
 		fmt.Printf("Can't find '%s'.\n", args[0])
 		return
@@ -214,8 +220,8 @@ func handleAdd(args []string) {
 	if statErr != nil {
 		log.Fatal(statErr)
 	}
-	if !slices.Contains(tracked.Files, args[0]) {
-		tracked.Files = append(tracked.Files, args[0])
+	if !slices.Contains(tracked.Files, file) {
+		tracked.Files = append(tracked.Files, file)
 	}
 	if err := saveJSON(indexPath, &tracked); err != nil {
 		log.Fatal(err)
@@ -273,7 +279,7 @@ func handleCommit(args []string) {
 	}
 
 	for _, file := range tracked.Files {
-		if _, err := copyFile(file, filepath.Join(hashPath, filepath.Base(file))); err != nil {
+		if _, err := copyFile(file, filepath.Join(hashPath, file)); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -284,7 +290,8 @@ func handleCommit(args []string) {
 	fmt.Println("Changes are committed.")
 }
 
-// copyFile copies a regular file and returns the number of bytes written.
+// copyFile copies a regular file, creating parent directories as needed, and
+// returns the number of bytes written.
 func copyFile(src, dst string) (int64, error) {
 	srcStat, err := os.Stat(src)
 	if err != nil {
@@ -298,6 +305,9 @@ func copyFile(src, dst string) (int64, error) {
 		return 0, err
 	}
 	defer source.Close()
+	if err := os.MkdirAll(filepath.Dir(dst), os.ModePerm); err != nil {
+		return 0, err
+	}
 	dest, err := os.Create(dst)
 	if err != nil {
 		return 0, err
@@ -357,17 +367,24 @@ func handleCheckout(args []string) {
 			return
 		}
 	}
-	newFiles, err := os.ReadDir(hashPath)
-	if err != nil {
-		log.Fatal(err)
-	}
 	// check in the new files
-	for _, file := range newFiles {
-		_, err := copyFile(filepath.Join(hashPath, file.Name()), file.Name())
+	err := filepath.WalkDir(hashPath, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
-			fmt.Println("Error copying file:", err)
-			return
+			return err
 		}
+		if entry.IsDir() {
+			return nil
+		}
+		file, err := filepath.Rel(hashPath, path)
+		if err != nil {
+			return err
+		}
+		_, err = copyFile(path, file)
+		return err
+	})
+	if err != nil {
+		fmt.Println("Error copying file:", err)
+		return
 	}
 	fmt.Printf("Switched to commit %s.\n", args[0])
 }
