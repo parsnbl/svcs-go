@@ -1,0 +1,24 @@
+# course config files
+*.yaml
+
+# gradle
+.gradle/
+build
+
+
+# idea config
+.idea
+
+# local editor and tool config
+.mcp.json
+.DS_Store
+
+# program output
+vcs/
+
+# old stages
+/Version Control System (Go)/*
+!/Version Control System (Go)/task/
+/Version Control System (Go)/task/*
+!/Version Control System (Go)/task/main.go
+!/Version Control System (Go)/task/test
